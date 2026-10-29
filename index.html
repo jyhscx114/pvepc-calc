@@ -1,0 +1,1321 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>光伏EPC价格测算器</title>
+  <style>
+    :root {
+      --bg: #efede5;
+      --paper: #fffef9;
+      --paper-soft: #f3f1e8;
+      --ink: #202823;
+      --muted: #626a64;
+      --line: #aeb7ae;
+      --navy: #163d2c;
+      --navy-2: #2d6049;
+      --teal: #28634b;
+      --teal-soft: #e5efe7;
+      --amber: #9b5d00;
+      --amber-soft: #fff4cc;
+      --danger: #a1261b;
+      --danger-soft: #f8e6e2;
+      --shadow: none;
+      --radius: 4px;
+      --font: "Segoe UI", "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #171b18;
+        --paper: #f7f3e8;
+        --paper-soft: #ece7db;
+        --ink: #18201b;
+        --muted: #59615b;
+        --line: #9ca69e;
+        --navy: #113322;
+        --navy-2: #285641;
+        --teal: #205b41;
+        --teal-soft: #dce8df;
+        --amber: #8b5200;
+        --amber-soft: #f8e7bd;
+        --danger: #992319;
+        --danger-soft: #f1ddd8;
+        --shadow: none;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background-color: var(--bg);
+      background-image:
+        linear-gradient(rgba(39, 60, 47, .045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(39, 60, 47, .045) 1px, transparent 1px);
+      background-size: 24px 24px;
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    [hidden] { display: none !important; }
+
+    .shell {
+      width: min(1440px, calc(100% - 36px));
+      margin: 0 auto 34px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 0;
+      padding: 14px 2px;
+      border-bottom: 3px solid var(--navy);
+    }
+
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 2px;
+      background: var(--navy);
+      position: relative;
+    }
+    .brand-mark::before,
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      inset: 9px;
+      border: 2px solid rgba(255,255,255,.88);
+      transform: skewX(-20deg);
+    }
+    .brand-mark::after { inset: 19px 9px; border-width: 1px 0; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 2px; font-size: 24px; line-height: 1.2; letter-spacing: -.02em; }
+    .subline { margin: 0; color: var(--muted); font-size: 13px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(340px, .8fr) minmax(560px, 1.35fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .panel, .report {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .panel { padding: 22px; }
+    .report { overflow: hidden; }
+
+    .section {
+      padding: 0 0 22px;
+      margin-bottom: 22px;
+      border-bottom: 1px solid var(--line);
+    }
+    .section:last-of-type { margin-bottom: 0; }
+    .section-heading {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      margin-bottom: 14px;
+    }
+    .step {
+      flex: none;
+      width: 25px;
+      height: 25px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--teal-soft);
+      color: var(--teal);
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .section-heading h2 { margin: 0; font-size: 16px; line-height: 1.4; }
+    .section-heading p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+
+    .scope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .choice {
+      position: relative;
+      display: block;
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: var(--paper-soft);
+      cursor: pointer;
+    }
+    .choice input { position: absolute; opacity: 0; pointer-events: none; }
+    .choice .choice-title { display: block; font-weight: 700; margin-bottom: 2px; }
+    .choice .choice-desc { display: block; color: var(--muted); font-size: 12px; }
+    .choice:has(input:checked) {
+      border-color: var(--teal);
+      background: var(--teal-soft);
+      box-shadow: inset 0 0 0 1px var(--teal);
+    }
+
+    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    .field { min-width: 0; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; font-weight: 600; }
+    .control-wrap { position: relative; }
+    .control-wrap input, .control-wrap select, .field > input, .field > select {
+      width: 100%;
+      min-height: 42px;
+      padding: 9px 11px;
+      color: var(--ink);
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      outline: none;
+    }
+    .control-wrap input:focus, .control-wrap select:focus,
+    .field > input:focus, .field > select:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 18%, transparent);
+    }
+    .control-wrap .unit {
+      position: absolute;
+      right: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 12px;
+      pointer-events: none;
+    }
+    .control-wrap.has-unit input { padding-right: 55px; }
+
+    .hint {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .tech-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 10px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      border-radius: 2px;
+      color: var(--navy-2);
+      background: var(--paper-soft);
+      border: 1px solid var(--line);
+      font-size: 11px;
+    }
+
+    details.advanced-block {
+      margin-top: 13px;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: var(--paper-soft);
+      overflow: hidden;
+    }
+    details.advanced-block summary {
+      cursor: pointer;
+      padding: 12px 14px;
+      font-weight: 700;
+      color: var(--ink);
+      list-style: none;
+    }
+    details.advanced-block summary::-webkit-details-marker { display: none; }
+    details.advanced-block summary::after { content: "+"; float: right; color: var(--muted); }
+    details.advanced-block[open] summary::after { content: "−"; }
+    .details-body { padding: 0 14px 15px; }
+
+    .material-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .material-table th {
+      color: var(--muted);
+      font-weight: 600;
+      text-align: left;
+      padding: 6px 4px;
+      border-bottom: 1px solid var(--line);
+    }
+    .material-table td { padding: 5px 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 65%, transparent); }
+    .material-table input { width: 100%; min-width: 66px; padding: 6px; border: 1px solid var(--line); border-radius: 2px; background: var(--paper); color: var(--ink); }
+
+    .check-row { display: flex; align-items: center; gap: 9px; margin-top: 12px; color: var(--ink); font-size: 13px; }
+    .check-row input { width: 18px; height: 18px; accent-color: var(--teal); }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 9px; padding-top: 4px; }
+    .btn {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      padding: 8px 13px;
+      background: var(--paper);
+      cursor: pointer;
+      font-weight: 650;
+    }
+    .btn:hover { border-color: var(--navy-2); }
+    .btn.primary { color: #fff; background: var(--navy); border-color: var(--navy); }
+    .btn.teal { color: var(--teal); background: var(--teal-soft); border-color: color-mix(in srgb, var(--teal) 40%, var(--line)); }
+    .status { min-height: 18px; margin-top: 8px; color: var(--teal); font-size: 12px; }
+    .error { color: var(--danger); background: var(--danger-soft); border-radius: 2px; padding: 8px 10px; margin-top: 10px; }
+
+    .report-head {
+      position: relative;
+      padding: 20px 24px;
+      color: var(--ink);
+      background: #ecebdc;
+      border-bottom: 3px solid var(--navy);
+    }
+    .report-head .eyebrow { margin: 0 0 8px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    .result-row { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+    .result-price { font-size: clamp(40px, 5vw, 58px); font-weight: 760; line-height: 1; letter-spacing: -.045em; color: var(--navy); }
+    .result-price small { font-size: 16px; font-weight: 500; letter-spacing: 0; margin-left: 7px; opacity: .85; }
+    .result-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .result-meta .chip { background: var(--paper); border-color: var(--line); color: var(--ink); }
+
+    .report-body { padding: 24px 26px 28px; }
+    .range-wrap { margin: 0 0 22px; }
+    .range-top { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+    .range-top strong { font-size: 14px; }
+    .range-top span { color: var(--muted); font-size: 12px; }
+    .range-track {
+      position: relative;
+      height: 12px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #deebe4, #efe8c8, #eadbd5);
+    }
+    .range-band { position: absolute; top: 0; bottom: 0; background: rgba(39,116,94,.25); border-radius: 2px; }
+    .range-marker { position: absolute; top: 50%; width: 18px; height: 18px; border-radius: 2px; background: var(--teal); border: 2px solid var(--paper); transform: translate(-50%,-50%); }
+    .range-marker.median { width: 10px; height: 10px; border-width: 2px; background: var(--amber); }
+    .range-labels { display: flex; justify-content: space-between; margin-top: 7px; color: var(--muted); font-size: 11px; }
+
+    .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 22px; }
+    .metric { padding: 13px; border-radius: 2px; background: var(--paper-soft); border: 1px solid var(--line); }
+    .metric label { display: block; color: var(--muted); font-size: 11px; }
+    .metric strong { display: block; margin-top: 3px; font-size: 18px; }
+
+    .reality-check {
+      margin: 0 0 22px;
+      padding: 12px 14px;
+      background: var(--amber-soft);
+      border: 1px solid color-mix(in srgb, var(--amber) 40%, var(--line));
+    }
+    .reality-check > div {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .reality-label {
+      color: var(--amber);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+    }
+    .reality-check strong { font-size: 15px; }
+    .reality-check p { margin: 5px 0 0; font-size: 12px; color: var(--ink); }
+
+    .two-col { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(220px,.9fr); gap: 20px; margin-bottom: 24px; }
+    .subsection h3 { margin-bottom: 9px; font-size: 14px; }
+    .bridge-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .bridge-table th, .bridge-table td { padding: 7px 6px; border-bottom: 1px solid var(--line); }
+    .bridge-table th { text-align: left; color: var(--muted); font-weight: 600; }
+    .bridge-table td:last-child, .bridge-table th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+    .bridge-table tr.total td { border-top: 2px solid var(--line); font-weight: 750; font-size: 13px; }
+
+    .driver-list { display: grid; gap: 9px; }
+    .driver { display: grid; grid-template-columns: minmax(82px, .7fr) minmax(100px, 1.6fr) 62px; align-items: center; gap: 8px; font-size: 11px; }
+    .driver-label { color: var(--muted); }
+    .driver-track { position: relative; height: 8px; background: var(--paper-soft); border-radius: 2px; overflow: hidden; }
+    .driver-center { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--line); }
+    .driver-bar { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+    .driver-bar.pos { left: 50%; background: var(--teal); }
+    .driver-bar.neg { right: 50%; background: var(--danger); }
+    .driver-value { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .assessment {
+      padding: 14px 15px;
+      border-radius: 2px;
+      background: var(--teal-soft);
+      color: var(--ink);
+      border: 1px solid color-mix(in srgb, var(--teal) 24%, var(--line));
+      margin-bottom: 22px;
+    }
+    .assessment strong { color: var(--teal); }
+
+    details.method {
+      margin-top: 18px;
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+    }
+    details.method summary { cursor: pointer; font-weight: 750; list-style: none; }
+    details.method summary::-webkit-details-marker { display: none; }
+    details.method summary::after { content: "＋"; float: right; color: var(--muted); }
+    details.method[open] summary::after { content: "−"; }
+    .method-body { margin-top: 13px; color: var(--text); font-size: 12px; }
+    .formula {
+      overflow-x: auto;
+      padding: 12px;
+      border-radius: 2px;
+      background: var(--paper-soft);
+      border: 1px solid var(--line);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 11px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .calc-trace {
+      margin: 9px 0 14px;
+      padding: 12px;
+      overflow-x: auto;
+      border: 1px dashed var(--line);
+      background: var(--paper);
+      color: var(--ink);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+    .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin: 12px 0; }
+    .evidence { padding: 11px; border: 1px solid var(--line); border-radius: 2px; background: var(--paper-soft); }
+    .evidence b { display: block; margin-bottom: 3px; }
+    .evidence span { color: var(--muted); }
+    .source-list { margin: 8px 0 0; padding-left: 18px; color: var(--muted); }
+    .source-list li { margin: 4px 0; }
+
+    .footer-note { margin-top: 20px; color: var(--muted); font-size: 11px; }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .two-col { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .shell { width: min(100% - 20px, 1440px); margin-top: 12px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .report-head, .report-body, .panel { padding-left: 17px; padding-right: 17px; }
+      .fields, .scope-grid, .metrics, .evidence-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+      .report-head { padding-top: 22px; }
+      .result-price { font-size: 45px; }
+      .range-top { flex-direction: column; gap: 4px; }
+    }
+
+    @media print {
+      body { background: #fff; color: #111; }
+      .shell { width: 100%; margin: 0; }
+      .topbar, .panel, .actions, .status, .report-head .result-meta { display: none !important; }
+      .layout { display: block; }
+      .report { border: 0; box-shadow: none; }
+      .report-head { color: #111; background: #eef3f7; padding: 18px 0; }
+      .report-body { padding: 18px 0; }
+      details.method { display: block; }
+      details.method > summary { display: none; }
+      details.method > .method-body { display: block !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <h1>光伏 EPC 价格测算器</h1>
+          <p class="subline">分场景统计模型 + 组件技术路线 + 成本压力修正</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel" aria-label="项目输入">
+        <div class="section">
+          <div class="section-heading">
+            <span class="step">1</span>
+            <div>
+              <h2>EPC 范围</h2>
+              <p>先确定价格是否包含组件，后续字段会随选择变化。</p>
+            </div>
+          </div>
+          <div class="scope-grid">
+            <label class="choice">
+              <input type="radio" name="epcScope" value="large" checked>
+              <span class="choice-title">大 EPC</span>
+              <span class="choice-desc">含光伏组件，通常包含场区建安和并网工程</span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="epcScope" value="small">
+              <span class="choice-title">小 EPC</span>
+              <span class="choice-desc">不含组件，主要核算设计、施工、电气及并网</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-heading">
+            <span class="step">2</span>
+            <div>
+              <h2>项目情形</h2>
+              <p>规模取交流或直流容量时必须保持前后一致。</p>
+            </div>
+          </div>
+          <div class="fields">
+            <div class="field full">
+              <label for="projectType">项目类型</label>
+              <select id="projectType"></select>
+            </div>
+            <div class="field">
+              <label for="capacity">项目规模</label>
+              <div class="control-wrap has-unit">
+                <input id="capacity" type="number" min="0.05" step="0.01" value="5.922" inputmode="decimal">
+                <span class="unit">MW</span>
+              </div>
+            </div>
+            <div class="field">
+              <label for="ownerType">业主类型</label>
+              <select id="ownerType">
+                <option value="central">央国企</option>
+                <option value="local">地方国企</option>
+                <option value="private">民营企业</option>
+                <option value="foreign">外资/合资</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="section" id="componentSection">
+          <div class="section-heading">
+            <span class="step">3</span>
+            <div>
+              <h2>组件技术路线</h2>
+              <p>直接输入当前组件成交价；技术参数用于修正 BOS 与风险。</p>
+            </div>
+          </div>
+          <div class="fields">
+            <div class="field full">
+              <label for="componentType">组件类型</label>
+              <select id="componentType"></select>
+              <div class="tech-meta" id="techMeta"></div>
+            </div>
+            <div class="field full">
+              <label for="componentPrice">当前组件价格</label>
+              <div class="control-wrap has-unit">
+                <input id="componentPrice" type="number" min="0.1" step="0.001" inputmode="decimal">
+                <span class="unit">元/W</span>
+              </div>
+            </div>
+          </div>
+          <p class="hint" id="componentHint"></p>
+        </div>
+
+        <div>
+          <div class="section">
+            <div class="section-heading">
+              <span class="step">A</span>
+              <div>
+                <h2>统计模型变量</h2>
+                <p>高级输入会直接影响回归模型的基准价格。</p>
+              </div>
+            </div>
+            <div class="fields">
+              <div class="field">
+                <label for="stage">信息阶段</label>
+                <select id="stage">
+                  <option value="定标">定标</option>
+                  <option value="候选">候选</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="bidders">候选投标人数</label>
+                <div class="control-wrap has-unit">
+                  <input id="bidders" type="number" min="1" max="10" step="1" value="1" inputmode="numeric">
+                  <span class="unit">家</span>
+                </div>
+              </div>
+              <div class="field">
+                <label for="monthIndex">评估月份</label>
+                <select id="monthIndex">
+                  <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+                  <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+                  <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+                  <option value="10" selected>10月</option><option value="11">11月</option><option value="12">12月</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="region">区域修正</label>
+                <div class="tech-meta" style="margin-top:0">
+                  <label class="check-row" style="margin:0"><input id="applyRegion" type="checkbox"> 使用区域修正</label>
+                </div>
+              </div>
+              <div class="field full" id="regionField" hidden>
+                <label for="regionValue">项目区域</label>
+                <select id="regionValue">
+                  <option value="华北">华北</option>
+                  <option value="华东">华东</option>
+                  <option value="华中">华中</option>
+                  <option value="华南">华南</option>
+                  <option value="西南">西南</option>
+                  <option value="西北">西北</option>
+                  <option value="东北">东北</option>
+                  <option value="其他">其他/未识别</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-heading">
+              <span class="step">B</span>
+              <div>
+                <h2>技术与成本修正</h2>
+                <p>默认值来自模型；可以直接覆盖。</p>
+              </div>
+            </div>
+            <div class="fields">
+              <div class="field">
+                <label for="moduleReference">组件基准价</label>
+                <div class="control-wrap has-unit">
+                  <input id="moduleReference" type="number" min="0.1" step="0.001" value="0.713" inputmode="decimal">
+                  <span class="unit">元/W</span>
+                </div>
+              </div>
+              <div class="field">
+                <label for="modulePassThrough">组件价格传导率</label>
+                <div class="control-wrap has-unit">
+                  <input id="modulePassThrough" type="number" min="0" max="150" step="1" value="85" inputmode="numeric">
+                  <span class="unit">%</span>
+                </div>
+              </div>
+              <div class="field">
+                <label for="techBosAdj">技术版型 BOS 调整</label>
+                <div class="control-wrap has-unit">
+                  <input id="techBosAdj" type="number" step="0.001" inputmode="decimal">
+                  <span class="unit">元/W</span>
+                </div>
+              </div>
+              <div class="field">
+                <label for="techRiskAdj">技术/质保风险</label>
+                <div class="control-wrap has-unit">
+                  <input id="techRiskAdj" type="number" step="0.001" inputmode="decimal">
+                  <span class="unit">元/W</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <details class="advanced-block" open>
+            <summary>辅材与施工价格</summary>
+            <div class="details-body">
+              <p class="hint">用于非组件 BOS 和施工成本的相对变化修正。基准价格为 2026-10 参考值，可替换成最新采购价。</p>
+              <table class="material-table">
+                <thead>
+                  <tr><th>项目</th><th>当前价</th><th>基准价</th><th>权重</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>镀锌钢（元/吨）</td><td><input id="steelNow" type="number" value="4270"></td><td><input id="steelBase" type="number" value="4270"></td><td><input id="steelWeight" type="number" value="45">%</td></tr>
+                  <tr><td>铜（元/吨）</td><td><input id="copperNow" type="number" value="73000"></td><td><input id="copperBase" type="number" value="73000"></td><td><input id="copperWeight" type="number" value="15">%</td></tr>
+                  <tr><td>人工指数</td><td><input id="laborNow" type="number" value="100"></td><td><input id="laborBase" type="number" value="100"></td><td><input id="laborWeight" type="number" value="25">%</td></tr>
+                </tbody>
+              </table>
+              <div class="fields" style="margin-top:10px">
+                <div class="field">
+                  <label for="materialPassThrough">非组件成本传导率</label>
+                  <div class="control-wrap has-unit">
+                    <input id="materialPassThrough" type="number" min="0" max="120" step="1" value="70">
+                    <span class="unit">%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="advanced-block" id="moduleMaterialBlock" open>
+            <summary>组件辅材敏感性</summary>
+            <div class="details-body">
+              <p class="hint">当前组件价格默认已经反映这些辅材变化。若要把材料变化再叠加到组件价格，请勾选下方选项。</p>
+              <table class="material-table">
+                <thead>
+                  <tr><th>项目</th><th>当前价</th><th>基准价</th><th>权重</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>铝 A356.2（元/吨）</td><td><input id="aluNow" type="number" value="23820"></td><td><input id="aluBase" type="number" value="23820"></td><td><input id="aluWeight" type="number" value="18">%</td></tr>
+                  <tr><td>玻璃 2.0mm（元/m²）</td><td><input id="glassNow" type="number" value="16.5" step="0.1"></td><td><input id="glassBase" type="number" value="16.5" step="0.1"></td><td><input id="glassWeight" type="number" value="15">%</td></tr>
+                  <tr><td>胶膜（元/m²）</td><td><input id="filmNow" type="number" value="7.32" step="0.01"></td><td><input id="filmBase" type="number" value="7.32" step="0.01"></td><td><input id="filmWeight" type="number" value="10">%</td></tr>
+                  <tr><td>银浆（元/kg）</td><td><input id="silverNow" type="number" value="7615"></td><td><input id="silverBase" type="number" value="7615"></td><td><input id="silverWeight" type="number" value="25">%</td></tr>
+                </tbody>
+              </table>
+              <label class="check-row"><input id="includeModuleMaterial" type="checkbox"> 将辅材变化追加到组件价格</label>
+            </div>
+          </details>
+
+          <details class="advanced-block" open>
+            <summary>范围与人工调整</summary>
+            <div class="details-body">
+              <div class="fields">
+                <div class="field full">
+                  <label for="referencePrice">现实对标价</label>
+                  <div class="control-wrap has-unit">
+                    <input id="referencePrice" type="number" min="0.1" step="0.001" value="1.800" inputmode="decimal">
+                    <span class="unit">元/W</span>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="boosterExtra">升压站额外范围</label>
+                  <div class="control-wrap has-unit">
+                    <input id="boosterExtra" type="number" min="-1" max="1" step="0.001" value="0" inputmode="decimal">
+                    <span class="unit">元/W</span>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="storageExtra">储能配套摊销</label>
+                  <div class="control-wrap has-unit">
+                    <input id="storageExtra" type="number" min="-1" max="1" step="0.001" value="0" inputmode="decimal">
+                    <span class="unit">元/W</span>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="terrainExtra">超常规地形成本</label>
+                  <div class="control-wrap has-unit">
+                    <input id="terrainExtra" type="number" min="-1" max="2" step="0.001" value="0" inputmode="decimal">
+                    <span class="unit">元/W</span>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="manualExtra">人工总调整</label>
+                  <div class="control-wrap has-unit">
+                    <input id="manualExtra" type="number" min="-3" max="3" step="0.001" value="0" inputmode="decimal">
+                    <span class="unit">元/W</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="copyButton" type="button">复制测算报告</button>
+          <button class="btn" id="printButton" type="button">打印 / 另存 PDF</button>
+          <button class="btn" id="resetButton" type="button">恢复模型默认值</button>
+        </div>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+      </section>
+
+      <article class="report" aria-label="测算结果">
+        <header class="report-head">
+          <p class="eyebrow">Conditional EPC Estimate</p>
+          <div class="result-row">
+            <div id="resultPrice" class="result-price" aria-live="polite">2.399<small>元/W</small></div>
+            <div id="resultSignal" class="chip">接近场景中位</div>
+          </div>
+          <div class="result-meta">
+            <span id="resultProject" class="chip">工商业屋顶</span>
+            <span id="resultScope" class="chip">大EPC</span>
+            <span id="resultCapacity" class="chip">5.922 MW</span>
+          </div>
+        </header>
+
+        <div class="report-body">
+          <div class="range-wrap" aria-label="80%经验区间">
+            <div class="range-top">
+              <strong id="rangeText">80%经验区间 1.763–3.185 元/W</strong>
+              <span id="investmentText">对应总投资约 1.42 亿元</span>
+            </div>
+            <div class="range-track">
+              <div id="rangeBand" class="range-band"></div>
+              <div id="rangeMarker" class="range-marker"></div>
+              <div id="medianMarker" class="range-marker median" title="场景中位价"></div>
+            </div>
+            <div class="range-labels">
+              <span id="rangeLow">1.76</span>
+              <span>场景实测中位：<b id="medianText">2.57</b></span>
+              <span id="rangeHigh">3.19</span>
+            </div>
+          </div>
+
+          <div class="metrics">
+            <div class="metric"><label>统计模型底价</label><strong id="baseMetric">2.403</strong></div>
+            <div class="metric"><label>组件及技术修正</label><strong id="techMetric">0.000</strong></div>
+            <div class="metric"><label>辅材及范围修正</label><strong id="otherMetric">0.000</strong></div>
+          </div>
+
+          <div class="reality-check">
+            <div>
+              <span class="reality-label">现实对照</span>
+              <strong id="realityHeadline">低于同类样本中位</strong>
+            </div>
+            <p id="realityText"></p>
+          </div>
+
+          <div class="two-col">
+            <div class="subsection">
+              <h3>价格桥</h3>
+              <table class="bridge-table">
+                <thead><tr><th>项目</th><th>元/W</th></tr></thead>
+                <tbody id="bridgeBody"></tbody>
+              </table>
+            </div>
+            <div class="subsection">
+              <h3>主要差异项</h3>
+              <div id="driverList" class="driver-list"></div>
+            </div>
+          </div>
+
+          <div id="assessment" class="assessment" aria-live="polite"></div>
+
+          <details class="method" open>
+            <summary>算法、模型与数据依据</summary>
+            <div class="method-body">
+              <p>先用项目情形对应的岭回归模型估计基础 EPC，再叠加组件价格、技术路线 BOS、质保风险、辅材施工成本和范围调整。模型系数可在“统计模型”页查看，原始样本可在“统计样本”页逐条复核。</p>
+              <div class="formula" id="formulaText"></div>
+              <h3>实际数值代入</h3>
+              <pre class="calc-trace" id="calcTrace"></pre>
+              <div class="evidence-grid">
+                <div class="evidence"><b>模型类型</b><span id="evidenceType"></span></div>
+                <div class="evidence"><b>样本规模</b><span id="evidenceSample"></span></div>
+                <div class="evidence"><b>交叉验证R²</b><span id="evidenceR2"></span></div>
+                <div class="evidence"><b>交叉验证MdAPE</b><span id="evidenceMape"></span></div>
+              </div>
+              <p><b>数据口径：</b>2026年1月4日至10月24日，Mysteel招投标数据。清洗后579个主项目样本；只保留一个项目一条主报价，避免多中标候选人重复加权。分类依据项目名称中的屋顶、渔光、山地、农光等关键词，因此复杂项目仍需人工复核。</p>
+              <p><b>技术路线：</b>TOPCon 210R/210、BC 210R及钙钛矿当前示范/早期规模化/成熟目标采用不同组件价、BOS修正和质保融资风险。组件价格输入是市场价或预期成交价，不直接用上游成本替代。</p>
+              <p><b>核心限制：</b>模型R²属于中等水平，且复杂地面只有24个样本。结果用于前期概算、招标比价和异常报价筛查，不替代工程量清单、现场踏勘、正式询价和融资审查。</p>
+              <ul class="source-list">
+                <li>Mysteel光伏产业链招投标数据（截至2026-10-24）</li>
+                <li>Mysteel光伏产业链市场报价及辅材价格（截至2026-10-23）</li>
+                <li>Mysteel光伏产业链成本模型、组件和电池片分析</li>
+                <li>北极星及光伏头条2026年集中式EPC市场周报，用于外部量级校验</li>
+              </ul>
+            </div>
+          </details>
+
+          <p class="footer-note">本页为离线测算工具。数据更新后，可用新样本重新训练并替换页面内置模型参数；所有输入仅保存在当前浏览器。</p>
+        </div>
+      </article>
+    </main>
+  </div>
+
+  <script>
+    const MODEL_DATA = {"data_cutoff":"2026-10-24","sample_rows":579,"sample_projects_by_group":{"其他分布式":31,"其他大型地面":150,"复杂地面（山地/农光）":24,"工商业屋顶":302,"平地地面":37,"渔光/水面":35},"models":{"其他分布式":{"n":31,"features":["log_capacity","small_epc","candidate","bidder_count","month_index","owner_central"],"target_mode":"log","alpha":1,"smearing":1.0123112949517274,"coefficients":{"intercept":1.0291758807009825,"log_capacity":0.010839866057585693,"small_epc":-0.6005074498716907,"candidate":-0.12246498882991139,"bidder_count":0.08519625786696086,"month_index":-0.0020725186914083782,"owner_central":-0.11014375049347791},"cross_validation":{"alpha":1,"target_mode":"log","rmse":0.4937332914373152,"mae":0.4190064728723951,"mdape":0.14190313929419118,"within_10":0.2903225806451613,"within_20":0.6774193548387096,"r2":0.48811581143043326},"fit":{"rmse":0.380664203975012,"mae":0.3273015164524719,"mdape":0.11572082348130162,"within_10":0.3870967741935484,"within_20":0.8064516129032258,"r2":0.6957217075197764},"baseline_metrics":{"rmse":0.6915990049838506,"mae":0.5429424395667894,"mdape":0.1402235750751492,"within_10":0.41935483870967744,"within_20":0.5806451612903226,"r2":-0.004374345061394225},"median_price":2.6129999999999995,"p25_price":2.1795200786646447,"p75_price":3.0332596649834396,"representative":{"inputs":{"capacity_mw":5.013,"small_epc":0,"candidate":0,"bidder_count":1,"month_index":10,"owner_central":1,"log_capacity":0.7000977046130538},"predicted_price":2.727344141609583,"p10_residual":-0.59485271010203,"p90_residual":0.5443800657958406}},"其他大型地面":{"n":150,"features":["log_capacity","small_epc","candidate","bidder_count","month_index","owner_central"],"target_mode":"linear","alpha":30,"smearing":1,"coefficients":{"intercept":2.402778576037708,"log_capacity":0.04456371885973835,"small_epc":-0.7300612222504871,"candidate":0.09587547549735843,"bidder_count":-0.021268504445039724,"month_index":0.010322063838321634,"owner_central":-0.34796853672507955},"cross_validation":{"alpha":30,"target_mode":"linear","rmse":0.630437987378901,"mae":0.5027821679673594,"mdape":0.2145233465817233,"within_10":0.20666666666666667,"within_20":0.47333333333333333,"r2":0.34775421630607484},"fit":{"rmse":0.5935300836913467,"mae":0.47548841274177733,"mdape":0.19589324873707747,"within_10":0.22666666666666666,"within_20":0.5066666666666667,"r2":0.42188797156596325},"baseline_metrics":{"rmse":0.7839794758873055,"mae":0.6313432242851957,"mdape":0.26978558024705246,"within_10":0.20666666666666667,"within_20":0.42,"r2":-0.008639377419971783},"median_price":2.056985395204636,"p25_price":1.5504021371564294,"p75_price":2.617273395,"representative":{"inputs":{"capacity_mw":120.37984,"small_epc":0,"candidate":0,"bidder_count":1,"month_index":10,"owner_central":1,"log_capacity":2.0805537617569776},"predicted_price":2.229479386162314,"p10_residual":-0.6950023012475175,"p90_residual":0.7930460369282426}},"复杂地面（山地/农光）":{"n":24,"features":["log_capacity","small_epc","candidate","bidder_count","month_index","owner_central"],"target_mode":"log","alpha":0.1,"smearing":1.0232973988890282,"coefficients":{"intercept":1.3294919005074655,"log_capacity":0.008953741763255547,"small_epc":-0.3988359607741113,"candidate":0.36969133999020404,"bidder_count":-0.42846579455427,"month_index":0.0038844042674525446,"owner_central":-0.23411059724925254},"cross_validation":{"alpha":0.1,"target_mode":"log","rmse":0.5370664061585875,"mae":0.442697477600285,"mdape":0.18136158029112853,"within_10":0.2916666666666667,"within_20":0.5416666666666666,"r2":0.18637392621451287},"fit":{"rmse":0.3776218490175593,"mae":0.3136406789069542,"mdape":0.12299736773051567,"within_10":0.375,"within_20":0.5833333333333334,"r2":0.5977619867830493},"baseline_metrics":{"rmse":0.5982257213170824,"mae":0.5317835673118085,"mdape":0.2201927743098705,"within_10":0.16666666666666666,"within_20":0.4583333333333333,"r2":-0.009483084626182192},"median_price":2.075515878103416,"p25_price":1.4115370480142264,"p75_price":2.5153652036160716,"representative":{"inputs":{"capacity_mw":96.654375,"small_epc":0,"candidate":0,"bidder_count":1,"month_index":10,"owner_central":1,"log_capacity":1.9852215168783396},"predicted_price":2.10974032122721,"p10_residual":-0.6591779868780556,"p90_residual":0.6499958200557727}},"工商业屋顶":{"n":302,"features":["log_capacity","small_epc","candidate","bidder_count","month_index","owner_central"],"target_mode":"linear","alpha":10,"smearing":1,"coefficients":{"intercept":3.2693449951092513,"log_capacity":-0.17895145913675553,"small_epc":-0.892575120324067,"candidate":-0.09639669961742688,"bidder_count":0.02331685024812747,"month_index":-0.02219927519347969,"owner_central":-0.5289523914577295},"cross_validation":{"alpha":10,"target_mode":"linear","rmse":0.5706115700071395,"mae":0.45737146706379267,"mdape":0.1665722213718234,"within_10":0.2980132450331126,"within_20":0.6258278145695364,"r2":0.376171722192716},"fit":{"rmse":0.5594836681578522,"mae":0.4498540942576924,"mdape":0.155320965678451,"within_10":0.30132450331125826,"within_20":0.6192052980132451,"r2":0.4002659072593362},"baseline_metrics":{"rmse":0.723065656603079,"mae":0.5883746684755914,"mdape":0.191592758251593,"within_10":0.2781456953642384,"within_20":0.5231788079470199,"r2":-0.0017039335275077505},"median_price":2.5700000000000003,"p25_price":2.027581086693548,"p75_price":3.0640898365316276,"representative":{"inputs":{"capacity_mw":5.922,"small_epc":0,"candidate":0,"bidder_count":1,"month_index":10,"owner_central":1,"log_capacity":0.7724684030532804},"predicted_price":2.403482354101428,"p10_residual":-0.6404540121701838,"p90_residual":0.7811128560474935}},"平地地面":{"n":37,"features":["log_capacity","small_epc","candidate","bidder_count","month_index","owner_central"],"target_mode":"linear","alpha":10,"smearing":1,"coefficients":{"intercept":2.8108515612905753,"log_capacity":-0.024579946031795964,"small_epc":-0.8271089645396122,"candidate":0.08711091402264597,"bidder_count":0.03745692517924774,"month_index":-0.02871175446416011,"owner_central":-0.3918695558570045},"cross_validation":{"alpha":10,"target_mode":"linear","rmse":0.6337428210838277,"mae":0.5108611422626401,"mdape":0.23643981449293344,"within_10":0.2972972972972973,"within_20":0.4594594594594595,"r2":0.42698500860833855},"fit":{"rmse":0.5229648301586614,"mae":0.41010000177885086,"mdape":0.17597580351354233,"within_10":0.3783783783783784,"within_20":0.5135135135135135,"r2":0.6098021742853335},"baseline_metrics":{"rmse":0.8380048969813796,"mae":0.6906451026746531,"mdape":0.30092344490840195,"within_10":0.21621621621621623,"within_20":0.35135135135135137,"r2":-0.0019198748926094744},"median_price":2.127455,"p25_price":1.3475251791474796,"p75_price":2.563696580390049,"representative":{"inputs":{"capacity_mw":100,"small_epc":0,"candidate":0,"bidder_count":1,"month_index":10,"owner_central":1,"log_capacity":2},"predicted_price":2.1201614939076254,"p10_residual":-0.7239711807690669,"p90_residual":0.8615579364143114}},"渔光/水面":{"n":35,"features":["log_capacity","small_epc","candidate","bidder_count","month_index","owner_central"],"target_mode":"linear","alpha":1,"smearing":1,"coefficients":{"intercept":3.8630146032936015,"log_capacity":-0.10047636377611863,"small_epc":-0.6512963504472427,"candidate":0.013844701131655835,"bidder_count":-0.178865884761661,"month_index":-0.0741341631126134,"owner_central":-0.8376905615295474},"cross_validation":{"alpha":1,"target_mode":"linear","rmse":0.5024908157449443,"mae":0.3738853000115241,"mdape":0.11918613050005937,"within_10":0.4,"within_20":0.6857142857142857,"r2":0.5869467755732426},"fit":{"rmse":0.41897149616157714,"mae":0.3083843653408822,"mdape":0.1028310095890582,"within_10":0.4857142857142857,"within_20":0.7428571428571429,"r2":0.7128434576502871},"baseline_metrics":{"rmse":0.7938774537828112,"mae":0.6288830347639891,"mdape":0.26028843338850494,"within_10":0.2857142857142857,"within_20":0.42857142857142855,"r2":-0.030995325543551333},"median_price":2.030043061538461,"p25_price":1.7306615912916665,"p75_price":2.843315862902819,"representative":{"inputs":{"capacity_mw":80,"small_epc":0,"candidate":0,"bidder_count":1,"month_index":10,"owner_central":1,"log_capacity":1.9030899869919435},"predicted_price":1.9139009640445679,"p10_residual":-0.5506982337959532,"p90_residual":0.5458443925568652}},"全样本（仅作基准）":{"n":579,"features":["log_capacity","small_epc","candidate","bidder_count","month_index","owner_central","type_其他大型地面","type_复杂地面（山地/农光）","type_工商业屋顶","type_平地地面","type_渔光/水面","region_华东","region_华中","region_华南","region_西南","region_西北","region_东北","region_其他"],"target_mode":"log","alpha":30,"smearing":1.0298839842826513,"coefficients":{"intercept":1.1789298796545598,"log_capacity":-0.05188136550180543,"small_epc":-0.4514656227681031,"candidate":-0.003615204548742959,"bidder_count":0.002483344440114379,"month_index":-0.004894234485675027,"owner_central":-0.20406494406247894,"type_其他大型地面":-0.06497008858229268,"type_复杂地面（山地/农光）":-0.11553783765045432,"type_工商业屋顶":-0.014144515735525134,"type_平地地面":-0.05112170017227715,"type_渔光/水面":-0.01663863145447778,"region_华东":-0.017833721478913607,"region_华中":-0.09254335589617883,"region_华南":0.06455667618030342,"region_西南":-0.037820622973384156,"region_西北":-0.06551244819395151,"region_东北":0.12091672696994665,"region_其他":-0.025937808877863767},"cross_validation":{"alpha":30,"target_mode":"log","rmse":0.5672626473439679,"mae":0.45197338008897964,"mdape":0.1653175512199636,"within_10":0.2849740932642487,"within_20":0.5906735751295337,"r2":0.4607701707183939},"fit":{"rmse":0.5508638701960192,"mae":0.43813070194193726,"mdape":0.15884637025106968,"within_10":0.3005181347150259,"within_20":0.6010362694300518,"r2":0.49149630648166565},"baseline_metrics":{"rmse":0.7725523760742062,"mae":0.634503728383264,"mdape":0.22608392308852185,"within_10":0.22279792746113988,"within_20":0.4421416234887737,"r2":-0.00014138627744619825},"median_price":2.353166594321757,"p25_price":1.7817528820512822,"p75_price":2.9283}}};
+    const STORAGE_KEY = "epc-advanced-calculator-v1";
+
+    const TECH = {
+      "TOPCon 210R": { price: 0.708, efficiency: 0.2295, density: 229.5, bos: 0, risk: 0, note: "成熟基准，价格来自Mysteel集中式报价" },
+      "TOPCon 210大版型": { price: 0.715, efficiency: 0.2318, density: 231.8, bos: -0.025, risk: -0.005, note: "720W大版型，安装与支架摊薄" },
+      "BC 210R": { price: 0.760, efficiency: 0.2410, density: 241.0, bos: -0.040, risk: 0.005, note: "高效率，但当前组件仍有溢价" },
+      "钙钛矿叠层-当前示范": { price: 1.820, efficiency: 0.2680, density: 268.0, bos: -0.050, risk: 0.145, note: "小批量项目价，质保与实证不足" },
+      "钙钛矿叠层-早期规模化": { price: 1.100, efficiency: 0.2680, density: 268.0, bos: -0.060, risk: 0.075, note: "成本目标，不是当前市场价" },
+      "钙钛矿叠层-成熟目标": { price: 0.850, efficiency: 0.2680, density: 268.0, bos: -0.060, risk: 0.045, note: "需良率、质保和融资条件同时成立" },
+      "自定义组件": { price: 0.700, efficiency: null, density: null, bos: 0, risk: 0, note: "手动输入组件价格和技术修正" }
+    };
+
+    const GROUP_NAMES = Object.keys(MODEL_DATA.models).filter((name) => name !== "全样本（仅作基准）");
+    const $ = (id) => document.getElementById(id);
+    const num = (id) => Number($(id).value);
+    const round = (value, digits = 3) => Number(value).toFixed(digits);
+    const pct = (value, digits = 1) => `${(Number(value) * 100).toFixed(digits)}%`;
+    const money = (value) => `${Number(value).toFixed(3)} 元/W`;
+
+    const DEFAULTS = {
+      epcScope: "large",
+      projectType: "工商业屋顶",
+      capacity: 5.922,
+      ownerType: "central",
+      stage: "定标",
+      bidders: 1,
+      monthIndex: 10,
+      regionValue: "其他",
+      applyRegion: false,
+      componentType: "TOPCon 210R",
+      componentPrice: 0.708,
+      moduleReference: 0.713,
+      modulePassThrough: 85,
+      techBosAdj: 0,
+      techRiskAdj: 0,
+      materialPassThrough: 70,
+      steelNow: 4270,
+      steelBase: 4270,
+      steelWeight: 45,
+      copperNow: 73000,
+      copperBase: 73000,
+      copperWeight: 15,
+      laborNow: 100,
+      laborBase: 100,
+      laborWeight: 25,
+      aluNow: 23820,
+      aluBase: 23820,
+      aluWeight: 18,
+      glassNow: 16.5,
+      glassBase: 16.5,
+      glassWeight: 15,
+      filmNow: 7.32,
+      filmBase: 7.32,
+      filmWeight: 10,
+      silverNow: 7615,
+      silverBase: 7615,
+      silverWeight: 25,
+      includeModuleMaterial: false,
+      referencePrice: 1.8,
+      boosterExtra: 0,
+      storageExtra: 0,
+      terrainExtra: 0,
+      manualExtra: 0
+    };
+
+    const REGION_EFFECT = {
+      "华北": 0,
+      "华东": -0.017833721478913607,
+      "华中": -0.09254335589617883,
+      "华南": 0.06455667618030342,
+      "西南": -0.037820622973384156,
+      "西北": -0.06551244819395151,
+      "东北": 0.12091672696994665,
+      "其他": -0.025937808877863767
+    };
+
+    function initSelects() {
+      const projectSelect = $("projectType");
+      projectSelect.innerHTML = GROUP_NAMES.map((name) => `<option value="${name}">${name}</option>`).join("");
+      const componentSelect = $("componentType");
+      componentSelect.innerHTML = Object.keys(TECH).map((name) => `<option value="${name}">${name}</option>`).join("");
+    }
+
+    function getScope() {
+      return document.querySelector('input[name="epcScope"]:checked').value;
+    }
+
+    function applyTechPreset(updatePrice = true) {
+      const tech = TECH[$("componentType").value];
+      if (updatePrice) $("componentPrice").value = tech.price.toFixed(3);
+      $("techBosAdj").value = tech.bos.toFixed(3);
+      $("techRiskAdj").value = tech.risk.toFixed(3);
+      const meta = [];
+      if (tech.efficiency) meta.push(`效率 ${pct(tech.efficiency)}`);
+      if (tech.density) meta.push(`功率密度 ${tech.density.toFixed(1)} W/m²`);
+      meta.push(`BOS ${tech.bos > 0 ? "+" : ""}${tech.bos.toFixed(3)} 元/W`);
+      $("techMeta").innerHTML = meta.map((item) => `<span class="chip">${item}</span>`).join("");
+      $("componentHint").textContent = tech.note;
+    }
+
+    function predictBase(group, capacity, small, stage, bidders, month, ownerCentral) {
+      const model = MODEL_DATA.models[group];
+      const c = model.coefficients;
+      const x = {
+        log_capacity: Math.log10(Math.max(capacity, 0.05)),
+        small_epc: small ? 1 : 0,
+        candidate: stage === "候选" ? 1 : 0,
+        bidder_count: bidders,
+        month_index: month,
+        owner_central: ownerCentral
+      };
+      const linear = c.intercept +
+        c.log_capacity * x.log_capacity +
+        c.small_epc * x.small_epc +
+        c.candidate * x.candidate +
+        c.bidder_count * x.bidder_count +
+        c.month_index * x.month_index +
+        c.owner_central * x.owner_central;
+      return {
+        base: model.target_mode === "log" ? Math.exp(linear) * model.smearing : linear,
+        linear,
+        x,
+        coefficients: c,
+        mode: model.target_mode,
+        smearing: model.smearing
+      };
+    }
+
+    function materialRate(now, base, weight) {
+      if (!base || base <= 0) return 0;
+      return ((now / base) - 1) * (weight / 100);
+    }
+
+    function calc() {
+      const scope = getScope();
+      const small = scope === "small";
+      $("componentSection").hidden = small;
+      $("moduleMaterialBlock").hidden = small;
+      $("componentPrice").disabled = small;
+
+      const project = $("projectType").value;
+      const capacity = num("capacity");
+      const bidders = Math.max(1, Math.min(10, num("bidders")));
+      const month = num("monthIndex");
+      const ownerCentral = $("ownerType").value === "central" ? 1 : 0;
+      const stage = $("stage").value;
+      const model = MODEL_DATA.models[project];
+
+      const validation = [];
+      if (!Number.isFinite(capacity) || capacity < 0.05) validation.push("项目规模必须不小于 0.05 MW。");
+      if (!small && (!Number.isFinite(num("componentPrice")) || num("componentPrice") <= 0)) validation.push("大EPC必须输入有效组件价格。");
+      if (!Number.isFinite(num("referencePrice")) || num("referencePrice") <= 0) validation.push("现实对标价必须大于 0。");
+      if (!small && (!Number.isFinite(num("moduleReference")) || num("moduleReference") <= 0)) validation.push("组件基准价必须大于 0。");
+      const errorBox = $("status");
+      if (validation.length) {
+        errorBox.className = "error";
+        errorBox.textContent = validation.join(" ");
+        return;
+      }
+      errorBox.className = "status";
+      errorBox.textContent = "输入已更新";
+
+      const prediction = predictBase(project, capacity, small, stage, bidders, month, ownerCentral);
+      const base = prediction.base;
+      const reference = num("moduleReference");
+      const pass = num("modulePassThrough") / 100;
+      const componentPrice = small ? 0 : num("componentPrice");
+      const moduleAdjustment = small ? 0 : (componentPrice - reference) * pass;
+      const techBos = small ? 0 : num("techBosAdj");
+      const techRisk = small ? 0 : num("techRiskAdj");
+
+      const componentRate =
+        materialRate(num("aluNow"), num("aluBase"), num("aluWeight")) +
+        materialRate(num("glassNow"), num("glassBase"), num("glassWeight")) +
+        materialRate(num("filmNow"), num("filmBase"), num("filmWeight")) +
+        materialRate(num("silverNow"), num("silverBase"), num("silverWeight"));
+      const moduleMaterialAdjustment =
+        !small && $("includeModuleMaterial").checked ? componentPrice * componentRate * pass : 0;
+
+      const bosRate =
+        materialRate(num("steelNow"), num("steelBase"), num("steelWeight")) +
+        materialRate(num("copperNow"), num("copperBase"), num("copperWeight")) +
+        materialRate(num("laborNow"), num("laborBase"), num("laborWeight"));
+      const partialBosRate = bosRate * (num("materialPassThrough") / 100);
+      const nonModuleBase = small ? base : Math.max(0.3, base - reference);
+      const materialAdjustment = nonModuleBase * partialBosRate;
+
+      const useRegion = $("applyRegion").checked;
+      const regionAdjustment = useRegion ? base * (Math.exp(REGION_EFFECT[$("regionValue").value]) - 1) : 0;
+      const scopeAdjustment = num("boosterExtra") + num("storageExtra") + num("terrainExtra");
+      const manualAdjustment = num("manualExtra");
+      const referencePrice = num("referencePrice");
+      const totalAdjustment =
+        moduleAdjustment +
+        techBos +
+        techRisk +
+        moduleMaterialAdjustment +
+        materialAdjustment +
+        regionAdjustment +
+        scopeAdjustment +
+        manualAdjustment;
+      const finalPrice = base + totalAdjustment;
+      const low = base + model.representative.p10_residual + totalAdjustment;
+      const high = base + model.representative.p90_residual + totalAdjustment;
+      const median = model.median_price;
+      const medianDelta = finalPrice / median - 1;
+      const referenceDelta = finalPrice / referencePrice - 1;
+      const referenceDirection = referenceDelta >= 0 ? "高于" : "低于";
+
+      $("resultPrice").innerHTML = `${finalPrice.toFixed(3)}<small>元/W</small>`;
+      $("resultProject").textContent = project;
+      $("resultScope").textContent = small ? "小EPC（不含组件）" : "大EPC（含组件）";
+      $("resultCapacity").textContent = `${capacity.toFixed(capacity < 10 ? 3 : 1)} MW`;
+      $("rangeText").textContent = `80%经验区间 ${low.toFixed(3)}–${high.toFixed(3)} 元/W`;
+      $("investmentText").textContent = `对应总投资约 ${(finalPrice * capacity / 100).toFixed(2)} 亿元`;
+      $("rangeLow").textContent = low.toFixed(2);
+      $("rangeHigh").textContent = high.toFixed(2);
+      $("medianText").textContent = median.toFixed(2);
+      $("baseMetric").textContent = base.toFixed(3);
+      $("techMetric").textContent = small ? "不适用" : (moduleAdjustment + techBos + techRisk + moduleMaterialAdjustment).toFixed(3);
+      $("otherMetric").textContent = (materialAdjustment + regionAdjustment + scopeAdjustment + manualAdjustment).toFixed(3);
+      $("realityHeadline").textContent = `${referenceDirection}现实对标价 ${pct(Math.abs(referenceDelta))}`;
+      $("realityText").textContent =
+        `本次 ${finalPrice.toFixed(3)} 元/W；同类历史中位 ${median.toFixed(3)} 元/W（${medianDelta >= 0 ? "+" : ""}${pct(medianDelta)}），80%经验区间 ${low.toFixed(3)}–${high.toFixed(3)} 元/W。` +
+        ` ${referencePrice.toFixed(3)} 元/W 对标价${referencePrice >= low && referencePrice <= high ? "落在" : "不在"}该区间内。` +
+        (finalPrice >= low && finalPrice <= high ? " 当前点预测与历史样本范围一致。" : " 当前点预测超出历史样本范围，应优先复核项目范围与输入。");
+
+      const signal = finalPrice < median * 0.9 ? "低于场景中位" : finalPrice > median * 1.1 ? "高于场景中位" : "接近场景中位";
+      $("resultSignal").textContent = signal;
+
+      const trackMin = Math.min(low, median) * 0.95;
+      const trackMax = Math.max(high, median) * 1.05;
+      const position = (value) => Math.max(0, Math.min(100, ((value - trackMin) / (trackMax - trackMin)) * 100));
+      $("rangeBand").style.left = `${position(low)}%`;
+      $("rangeBand").style.width = `${Math.max(1, position(high) - position(low))}%`;
+      $("rangeMarker").style.left = `${position(finalPrice)}%`;
+      $("medianMarker").style.left = `${position(median)}%`;
+
+      const bridge = [
+        ["统计模型基准", base],
+        ["组件价格差", moduleAdjustment],
+        ["技术BOS修正", techBos],
+        ["质保/融资风险", techRisk],
+        ["组件辅材追加", moduleMaterialAdjustment],
+        ["非组件材料与人工", materialAdjustment],
+        ["区域修正", regionAdjustment],
+        ["额外范围工程", scopeAdjustment],
+        ["人工调整", manualAdjustment],
+      ];
+      $("bridgeBody").innerHTML = bridge
+        .filter(([label, value]) => label === "统计模型基准" || Math.abs(value) > 0.0005)
+        .map(([label, value]) => `<tr><td>${label}</td><td>${value >= 0 ? "+" : ""}${value.toFixed(3)}</td></tr>`)
+        .join("") + `<tr class="total"><td>模型测算价格</td><td>${finalPrice.toFixed(3)}</td></tr>`;
+
+      const drivers = bridge.slice(1);
+      const maxAbs = Math.max(0.01, ...drivers.map(([, value]) => Math.abs(value)));
+      $("driverList").innerHTML = drivers
+        .filter(([, value]) => Math.abs(value) > 0.0005)
+        .map(([label, value]) => {
+          const width = Math.max(2, Math.abs(value) / maxAbs * 50);
+          return `<div class="driver"><span class="driver-label">${label}</span><span class="driver-track"><span class="driver-center"></span><span class="driver-bar ${value >= 0 ? "pos" : "neg"}" style="width:${width}%"></span></span><span class="driver-value">${value >= 0 ? "+" : ""}${value.toFixed(3)}</span></div>`;
+        }).join("") || `<span class="text-muted">没有额外修正，结果为统计模型基准。</span>`;
+
+      const reliabilityNote = model.n < 30 ? "样本少，建议视作区间参考" : model.cross_validation.r2 < .35 ? "拟合一般，需结合清单校验" : "模型解释度尚可";
+      $("assessment").innerHTML = `<strong>${signal}。</strong> 当前价格位于同场景实测中位价 ${median.toFixed(3)} 元/W 的${((finalPrice / median - 1) * 100).toFixed(1)}%。${small ? "小EPC已按不含组件口径计算。" : `组件价格相对基准调整 ${moduleAdjustment >= 0 ? "+" : ""}${moduleAdjustment.toFixed(3)} 元/W。`} ${reliabilityNote}。`;
+
+      $("formulaText").textContent = formulaText(model);
+      $("calcTrace").textContent = calculationTrace({
+        project, scope, capacity, small, ownerCentral, stage, bidders, month,
+        prediction, base, componentPrice, reference, pass,
+        moduleAdjustment, techBos, techRisk, componentRate,
+        moduleMaterialAdjustment, steelRate: materialRate(num("steelNow"), num("steelBase"), num("steelWeight")),
+        copperRate: materialRate(num("copperNow"), num("copperBase"), num("copperWeight")),
+        laborRate: materialRate(num("laborNow"), num("laborBase"), num("laborWeight")),
+        bosRate, partialBosRate, nonModuleBase, materialAdjustment,
+        useRegion, regionAdjustment, scopeAdjustment, manualAdjustment,
+        totalAdjustment, finalPrice, low, high, median, medianDelta,
+        referencePrice, referenceDelta, model
+      });
+      $("evidenceType").textContent = model.target_mode === "log" ? "半对数岭回归" : "线性岭回归";
+      $("evidenceSample").textContent = `${model.n} 个主项目`;
+      $("evidenceR2").textContent = model.cross_validation.r2.toFixed(3);
+      $("evidenceMape").textContent = pct(model.cross_validation.mdape);
+
+      window.__lastReport = {
+        project, scope, capacity, finalPrice, low, high, median, base,
+        moduleAdjustment, techBos, techRisk, moduleMaterialAdjustment,
+        materialAdjustment, regionAdjustment, scopeAdjustment, manualAdjustment,
+        modelName: project,
+        modelType: model.target_mode === "log" ? "半对数岭回归" : "线性岭回归",
+        referencePrice,
+        referenceDelta,
+        medianDelta,
+        r2: model.cross_validation.r2,
+        mape: model.cross_validation.mdape,
+        sample: model.n
+      };
+      saveState();
+    }
+
+    function formulaText(model) {
+      const c = model.coefficients;
+      const terms = [
+        `容量：${c.log_capacity >= 0 ? "+" : ""}${c.log_capacity.toFixed(3)}×log10(MW)`,
+        `小EPC：${c.small_epc >= 0 ? "+" : ""}${c.small_epc.toFixed(3)}`,
+        `候选：${c.candidate >= 0 ? "+" : ""}${c.candidate.toFixed(3)}`,
+        `投标人数：${c.bidder_count >= 0 ? "+" : ""}${c.bidder_count.toFixed(3)}`,
+        `月份：${c.month_index >= 0 ? "+" : ""}${c.month_index.toFixed(3)}`,
+        `央国企业主：${c.owner_central >= 0 ? "+" : ""}${c.owner_central.toFixed(3)}`
+      ].join("；");
+      if (model.target_mode === "log") {
+        return `基础EPC = EXP(${c.intercept.toFixed(3)} + ${terms}) × 残差修正 ${model.smearing.toFixed(3)}`;
+      }
+      return `基础EPC = ${c.intercept.toFixed(3)} + ${terms}`;
+    }
+
+    function calculationTrace(d) {
+      const c = d.prediction.coefficients;
+      const x = d.prediction.x;
+      const ownerLabel = d.ownerCentral ? "央国企" : "非央国企";
+      const regionName = $("regionValue").value;
+      const term = (label, coefficient, value) =>
+        `${coefficient >= 0 ? "+" : ""}${coefficient.toFixed(6)} × ${value}（${label}）`;
+      const componentMaterialTerms = [
+        ["铝", num("aluNow"), num("aluBase"), num("aluWeight")],
+        ["玻璃", num("glassNow"), num("glassBase"), num("glassWeight")],
+        ["胶膜", num("filmNow"), num("filmBase"), num("filmWeight")],
+        ["银浆", num("silverNow"), num("silverBase"), num("silverWeight")]
+      ];
+      const moduleMaterialLines = componentMaterialTerms.map(([name, now, base, weight]) =>
+        `  ${name}: (${now} ÷ ${base} - 1) × ${weight}% = ${pct(materialRate(now, base, weight), 3)}`
+      ).join("\n");
+      const regressionResult = d.prediction.mode === "log"
+        ? `EXP(${d.prediction.linear.toFixed(8)}) × ${d.prediction.smearing.toFixed(6)} = ${d.base.toFixed(6)} 元/W`
+        : `${d.prediction.linear.toFixed(8)} = ${d.base.toFixed(6)} 元/W`;
+      const moduleMaterialResult = d.small
+        ? "小EPC不进入组件辅材修正。"
+        : $("includeModuleMaterial").checked
+          ? `${d.componentPrice.toFixed(3)} × ${pct(d.componentRate, 3)} × ${pct(d.pass, 0)} = ${d.moduleMaterialAdjustment.toFixed(6)} 元/W`
+          : `未勾选追加；若勾选，则为 ${d.componentPrice.toFixed(3)} × ${pct(d.componentRate, 3)} × ${pct(d.pass, 0)} = ${(d.componentPrice * d.componentRate * d.pass).toFixed(6)} 元/W`;
+      const regionResult = d.useRegion
+        ? `${d.base.toFixed(6)} × (EXP(${REGION_EFFECT[regionName].toFixed(8)}) - 1) = ${d.regionAdjustment.toFixed(6)} 元/W`
+        : "未启用区域修正，按 0 元/W。";
+
+      return [
+        "【A. 分场景统计回归】",
+        `样本：${d.model.n} 个主项目；因变量：${d.prediction.mode === "log" ? "ln(EPC元/W)" : "EPC元/W"}；岭回归。`,
+        `变量：log10(容量) = log10(${d.capacity}) = ${x.log_capacity.toFixed(8)}`,
+        `小EPC哑变量 = ${x.small_epc}；候选阶段 = ${x.candidate}；投标人数 = ${x.bidder_count}；月份序号 = ${x.month_index}；央国企业主 = ${x.owner_central}（${ownerLabel}）。`,
+        `线性预测值 = ${c.intercept.toFixed(8)}`,
+        `  ${term("log10容量", c.log_capacity, x.log_capacity.toFixed(8))}`,
+        `  ${term("小EPC", c.small_epc, x.small_epc)}`,
+        `  ${term("候选阶段", c.candidate, x.candidate)}`,
+        `  ${term("投标人数", c.bidder_count, x.bidder_count)}`,
+        `  ${term("月份", c.month_index, x.month_index)}`,
+        `  ${term("央国企业主", c.owner_central, x.owner_central)}`,
+        `  = ${d.prediction.linear.toFixed(8)}`,
+        `${d.prediction.mode === "log" ? "半对数回算" : "线性模型结果"}：${regressionResult}`,
+        "",
+        "【B. 大EPC组件与技术修正】",
+        d.small
+          ? "小EPC不含组件：组件价格差、技术BOS、质保/融资风险、组件辅材均按 0。"
+          : `组件价格差 = (${d.componentPrice.toFixed(3)} - ${d.reference.toFixed(3)}) × ${pct(d.pass, 0)} = ${d.moduleAdjustment.toFixed(6)} 元/W`,
+        d.small ? "技术BOS修正 = 0；质保/融资风险 = 0。" : `技术BOS修正 = ${d.techBos.toFixed(6)} 元/W；质保/融资风险 = ${d.techRisk.toFixed(6)} 元/W。`,
+        "组件辅材加权变化率：",
+        moduleMaterialLines,
+        `  组件辅材合计变化率 = ${pct(d.componentRate, 3)}`,
+        `组件辅材追加 = ${moduleMaterialResult}`,
+        "",
+        "【C. 非组件辅材与人工修正】",
+        `镀锌钢 = (${num("steelNow")} ÷ ${num("steelBase")} - 1) × ${num("steelWeight")}% = ${pct(d.steelRate, 3)}`,
+        `铜 = (${num("copperNow")} ÷ ${num("copperBase")} - 1) × ${num("copperWeight")}% = ${pct(d.copperRate, 3)}`,
+        `人工 = (${num("laborNow")} ÷ ${num("laborBase")} - 1) × ${num("laborWeight")}% = ${pct(d.laborRate, 3)}`,
+        `加权变化率 = ${pct(d.bosRate, 3)}；乘传导率 ${num("materialPassThrough")}% = ${pct(d.partialBosRate, 3)}`,
+        `非组件计价基数 = ${d.small ? `小EPC统计基准 ${d.base.toFixed(6)}` : `MAX(0.3, ${d.base.toFixed(6)} - ${d.reference.toFixed(3)})`} = ${d.nonModuleBase.toFixed(6)} 元/W`,
+        `材料与人工修正 = ${d.nonModuleBase.toFixed(6)} × ${pct(d.partialBosRate, 4)} = ${d.materialAdjustment.toFixed(6)} 元/W`,
+        "",
+        "【D. 区域与范围修正】",
+        `区域修正 = ${regionResult}`,
+        `额外范围工程 = 升压站 ${num("boosterExtra").toFixed(3)} + 储能 ${num("storageExtra").toFixed(3)} + 地形 ${num("terrainExtra").toFixed(3)} = ${d.scopeAdjustment.toFixed(6)} 元/W`,
+        `人工总调整 = ${d.manualAdjustment.toFixed(6)} 元/W`,
+        "",
+        "【E. 合计与区间】",
+        `修正合计 = ${d.moduleAdjustment.toFixed(6)} + ${d.techBos.toFixed(6)} + ${d.techRisk.toFixed(6)} + ${d.moduleMaterialAdjustment.toFixed(6)} + ${d.materialAdjustment.toFixed(6)} + ${d.regionAdjustment.toFixed(6)} + ${d.scopeAdjustment.toFixed(6)} + ${d.manualAdjustment.toFixed(6)} = ${d.totalAdjustment.toFixed(6)} 元/W`,
+        `最终价格 = ${d.base.toFixed(6)} + ${d.totalAdjustment.toFixed(6)} = ${d.finalPrice.toFixed(6)} 元/W`,
+        `80%下限 = ${d.base.toFixed(6)} + (${d.model.representative.p10_residual.toFixed(6)}) + ${d.totalAdjustment.toFixed(6)} = ${d.low.toFixed(6)} 元/W`,
+        `80%上限 = ${d.base.toFixed(6)} + (${d.model.representative.p90_residual.toFixed(6)}) + ${d.totalAdjustment.toFixed(6)} = ${d.high.toFixed(6)} 元/W`,
+        `历史同类中位 = ${d.median.toFixed(6)} 元/W；最终价格相对中位 = ${d.medianDelta >= 0 ? "+" : ""}${pct(d.medianDelta, 2)}`,
+        `现实对标 = ${d.referencePrice.toFixed(3)} 元/W；最终价格相对对标 = ${d.referenceDelta >= 0 ? "+" : ""}${pct(d.referenceDelta, 2)}`,
+        `区间残差来自该场景交叉验证的分位数，不是正态分布假设；复杂地面等小样本场景应放大人工复核。`
+      ].join("\n");
+    }
+
+    function valuesSnapshot() {
+      return {
+        epcScope: getScope(),
+        projectType: $("projectType").value,
+        capacity: $("capacity").value,
+        ownerType: $("ownerType").value,
+        componentType: $("componentType").value,
+        componentPrice: $("componentPrice").value,
+        stage: $("stage").value,
+        bidders: $("bidders").value,
+        monthIndex: $("monthIndex").value,
+        applyRegion: $("applyRegion").checked,
+        regionValue: $("regionValue").value,
+        moduleReference: $("moduleReference").value,
+        modulePassThrough: $("modulePassThrough").value,
+        techBosAdj: $("techBosAdj").value,
+        techRiskAdj: $("techRiskAdj").value,
+        materialPassThrough: $("materialPassThrough").value,
+        steelNow: $("steelNow").value, steelBase: $("steelBase").value, steelWeight: $("steelWeight").value,
+        copperNow: $("copperNow").value, copperBase: $("copperBase").value, copperWeight: $("copperWeight").value,
+        laborNow: $("laborNow").value, laborBase: $("laborBase").value, laborWeight: $("laborWeight").value,
+        aluNow: $("aluNow").value, aluBase: $("aluBase").value, aluWeight: $("aluWeight").value,
+        glassNow: $("glassNow").value, glassBase: $("glassBase").value, glassWeight: $("glassWeight").value,
+        filmNow: $("filmNow").value, filmBase: $("filmBase").value, filmWeight: $("filmWeight").value,
+        silverNow: $("silverNow").value, silverBase: $("silverBase").value, silverWeight: $("silverWeight").value,
+        includeModuleMaterial: $("includeModuleMaterial").checked,
+        referencePrice: $("referencePrice").value,
+        boosterExtra: $("boosterExtra").value,
+        storageExtra: $("storageExtra").value,
+        terrainExtra: $("terrainExtra").value,
+        manualExtra: $("manualExtra").value
+      };
+    }
+
+    function saveState() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(valuesSnapshot())); } catch (_) {}
+    }
+
+    function restoreState() {
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); } catch (_) {}
+      const state = saved && typeof saved === "object" ? saved : null;
+      if (!state) {
+        $("projectType").value = DEFAULTS.projectType;
+        $("componentType").value = DEFAULTS.componentType;
+        applyTechPreset(true);
+        return;
+      }
+      document.querySelector(`input[name="epcScope"][value="${state.epcScope}"]`)?.click();
+      for (const key of ["projectType", "capacity", "ownerType", "stage", "bidders", "monthIndex", "regionValue", "componentType", "componentPrice", "moduleReference", "modulePassThrough", "techBosAdj", "techRiskAdj", "materialPassThrough", "steelNow", "steelBase", "steelWeight", "copperNow", "copperBase", "copperWeight", "laborNow", "laborBase", "laborWeight", "aluNow", "aluBase", "aluWeight", "glassNow", "glassBase", "glassWeight", "filmNow", "filmBase", "filmWeight", "silverNow", "silverBase", "silverWeight", "referencePrice", "boosterExtra", "storageExtra", "terrainExtra", "manualExtra"]) {
+        if (state[key] !== undefined && $(key)) $(key).value = state[key];
+      }
+      for (const key of ["applyRegion", "includeModuleMaterial"]) {
+        if (state[key] !== undefined && $(key)) $(key).checked = Boolean(state[key]);
+      }
+    }
+
+    function resetState() {
+      try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+      location.reload();
+    }
+
+    function buildReportText() {
+      const r = window.__lastReport;
+      if (!r) return "";
+      const scopeLabel = r.scope === "small" ? "小EPC（不含组件）" : "大EPC（含组件）";
+      return [
+        "光伏EPC价格测算结果",
+        `项目情形：${r.project}`,
+        `EPC范围：${scopeLabel}`,
+        `项目规模：${r.capacity.toFixed(3)} MW`,
+        `模型点预测：${r.finalPrice.toFixed(3)} 元/W`,
+        `80%经验区间：${r.low.toFixed(3)}–${r.high.toFixed(3)} 元/W`,
+        `场景实际中位价：${r.median.toFixed(3)} 元/W`,
+        `现实对标价：${r.referencePrice.toFixed(3)} 元/W（结果${r.referenceDelta >= 0 ? "高" : "低"} ${Math.abs(r.referenceDelta * 100).toFixed(1)}%）`,
+        `统计模型基准：${r.base.toFixed(3)} 元/W`,
+        `组件与技术修正：${(r.moduleAdjustment + r.techBos + r.techRisk + r.moduleMaterialAdjustment).toFixed(3)} 元/W`,
+        `辅材、区域及范围修正：${(r.materialAdjustment + r.regionAdjustment + r.scopeAdjustment + r.manualAdjustment).toFixed(3)} 元/W`,
+        `模型：${r.modelType}，样本${r.sample}个，交叉验证R² ${r.r2.toFixed(3)}，MdAPE ${(r.mape * 100).toFixed(1)}%`,
+        "说明：点预测用于前期概算和比价，不替代工程量清单、现场踏勘与正式询价。"
+      ].join("\n");
+    }
+
+    async function copyReport() {
+      const text = buildReportText();
+      try {
+        await navigator.clipboard.writeText(text);
+        $("status").textContent = "报告已复制到剪贴板";
+      } catch (_) {
+        const area = document.createElement("textarea");
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        area.remove();
+        $("status").textContent = "报告已复制到剪贴板";
+      }
+    }
+
+    initSelects();
+    restoreState();
+    applyTechPreset(false);
+
+    document.querySelectorAll("input, select").forEach((element) => {
+      element.addEventListener("change", () => {
+        if (element.id === "componentType") applyTechPreset(true);
+        if (element.id === "applyRegion") $("regionField").hidden = !$("applyRegion").checked;
+        calc();
+      });
+      element.addEventListener("input", calc);
+    });
+    $("resetButton").addEventListener("click", resetState);
+    $("copyButton").addEventListener("click", copyReport);
+    $("printButton").addEventListener("click", () => window.print());
+    calc();
+  </script>
+</body>
+</html>
